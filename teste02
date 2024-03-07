@@ -1,0 +1,51 @@
+#este script, monitora sempre que um host para, e notifica quando volta.
+#voce tambem pode colocar no crontab, pra te avisar de tempos em tempos.
+#voce pode alterar conforme sua necessidade.
+#by kuhnen.
+
+#!/bin/bash
+
+# Definindo os hosts e seus respectivos nomes
+declare -A hosts=(
+    ["192.168.0.1"]="nome_do_host" #voce pode ir adicionando quantos hosts quiser
+   
+)
+
+# Array para armazenar o estado anterior de cada host
+declare -A previous_state
+
+# Inicializar o estado anterior de cada host como desconhecido
+for host_ip in "${!hosts[@]}"; do
+    previous_state["$host_ip"]="unknown"
+done
+
+# Função para verificar o estado de um host e enviar notificação se o estado mudar
+check_host_status() {
+    local host_ip=$1
+    local host_name=${hosts[$host_ip]}
+    local current_state
+    if ping -c 5 "$host_ip" > /dev/null; then
+        current_state="up"
+    else
+        current_state="down"
+    fi
+
+    if [[ "${previous_state[$host_ip]}" != "$current_state" ]]; then
+        if [[ "$current_state" == "up" ]]; then
+            message="✅ $host_name está ONLINE ($host_ip)"
+        else
+            message="🔥 $host_name está OFFLINE ($host_ip)"
+        fi
+        # Enviar mensagem via curl para o Telegram
+        curl -s -X POST "https://api.telegram.org/bot456xxxx:TOKEN_AQUI/sendMessage" -d "chat_id=CHAT_ID_AQUI&text=$message" > /dev/null
+        previous_state["$host_ip"]=$current_state
+    fi
+}
+
+# Loop infinito para verificar o estado dos hosts
+while true; do
+    for host_ip in "${!hosts[@]}"; do
+        check_host_status "$host_ip"
+    done
+    sleep 10  # Intervalo de verificação de 10 segundos
+done
